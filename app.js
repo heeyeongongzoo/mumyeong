@@ -44,12 +44,47 @@
     return data;
   }
 
+  // ───────── 아바타
+  const AV = '<svg viewBox="0 0 24 24"><path d="M12.00 11.40 L12.15 11.34 L12.32 11.32 L12.51 11.35 L12.70 11.43 L12.88 11.57 L13.03 11.76 L13.13 11.99 L13.18 12.26 L13.16 12.54 L13.07 12.83 L12.90 13.11 L12.67 13.35 L12.37 13.54 L12.02 13.66 L11.64 13.70 L11.24 13.64 L10.85 13.49 L10.49 13.25 L10.18 12.92 L9.95 12.51 L9.81 12.05 L9.78 11.55 L9.87 11.03 L10.08 10.54 L10.40 10.09 L10.83 9.72 L11.34 9.44 L11.92 9.29 L12.54 9.26 L13.17 9.38 L13.76 9.64 L14.30 10.04 L14.74 10.57 L15.06 11.19 L15.24 11.89 L15.26 12.62 L15.11 13.36 L14.79 14.06 L14.32 14.68 L13.70 15.20 L12.97 15.57 L12.16 15.77 L11.31 15.79 L10.45 15.61 L9.65 15.24 L8.93 14.68 L8.35 13.97 L7.93 13.14 L7.70 12.21 L7.69 11.24 L7.89 10.27 L8.32 9.36 L8.94 8.56 L9.75 7.90 L10.69 7.43 L11.73 7.18 L12.82 7.16 L13.90 7.39 L14.92 7.87 L15.81 8.57 L16.55 9.46 L17.07 10.51 L17.35 11.66 L17.37 12.87 L17.11 14.06 L16.59 15.19 L15.82 16.18 L14.83 16.99 L13.68 17.57 L12.41 17.87 L11.09 17.89 L9.78 17.62 L8.54 17.05 L7.46 16.21 L6.57 15.13 L5.94 13.88 L5.60 12.49 L5.58 11.05 L5.88 9.62 L6.49 8.28 L7.40 7.10 L8.56 6.14 L9.92 5.45 L11.42 5.08 L12.98 5.05 L14.52 5.36 L15.97 6.03 L17.25 7.00 L18.29 8.25 L19.04 9.71" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  document.querySelectorAll("[data-av]").forEach((el) => (el.innerHTML = AV));
+  const hisName = () => esc(S?.him || "태엽");
+
+  // ───────── 겹쳐 열리는 화면(편지함·일기·정보·편지지): 안드로이드 뒤로가기도 받기
+  const layers = [];
+  function showLayer(name) {
+    if (name === "letters" || name === "diary") setTab(name);
+    else if (name === "settings") { $("settings").hidden = false; pushHelp(); }
+  }
+  function hideLayer(name) {
+    if (name === "letters" || name === "diary") { if (tab === name) setTab("chat"); }
+    else $(name).hidden = true;
+  }
+  function openLayer(name, fn) {
+    if (fn) fn(); else showLayer(name);
+    if (layers[layers.length - 1] === name) return;
+    layers.push(name);
+    try { history.pushState({ mm: layers.length }, ""); } catch { /* noop */ }
+  }
+  function goBack(name) {
+    if (layers[layers.length - 1] === name) history.back();
+    else hideLayer(name);
+  }
+  window.addEventListener("popstate", () => { const top = layers.pop(); if (top) hideLayer(top); });
+  document.addEventListener("click", (e) => {
+    const o = e.target.closest("[data-open]");
+    if (o) { if (o.dataset.open === "diary" && $("diaryTab").hidden) return; openLayer(o.dataset.open); return; }
+    const b = e.target.closest("[data-back]");
+    if (b) goBack(b.dataset.back);
+  });
+
   // ───────── 화면 전환
   function show(id) {
     for (const s of ["lock", "onboard", "app"]) $(s).hidden = s !== id;
   }
   function lock() {
     token = null; store.del("mm_token");
+    for (const id of ["settings", "paper", "letters", "diary"]) $(id).hidden = true;
+    layers.length = 0; tab = "chat";
     show("lock"); setTimeout(() => $("pass").focus(), 50);
   }
   function toast(t, ms = 2400) {
@@ -117,17 +152,24 @@
   function applyState(st) {
     S = st;
     $("hisName").textContent = st.him || "태엽";
+    $("infoName").textContent = st.him || "태엽";
     $("status").textContent = st.status || "";
+    $("infoStatus").textContent = st.status || "";
     $("presence").textContent = st.presence || "";
-    $("dday").textContent = st.day ? (st.day <= 30 ? `${st.day}일째 · 30` : `${st.day}일째`) : "";
+    $("dday").textContent = st.day ? `${st.day}일째` : "";
+    $("dayText").textContent = st.day ? `${st.day}일째` : "";
+    $("dayBar").style.width = st.day ? `${Math.min(100, (st.day / 30) * 100)}%` : "0";
     $("myName").textContent = st.her || "";
-    $("letterBadge").hidden = !st.unread_letters;
+    const unread = st.unread_letters;
+    $("letterBadge").hidden = !unread;
+    $("letterBadge").textContent = typeof unread === "number" && unread > 0 ? (unread > 9 ? "9+" : String(unread)) : "";
     $("diaryTab").hidden = !st.diary;
     $("aiBanner").hidden = st.ai_ready !== false;
     const ended = st.phase === "ended";
-    $("composer").hidden = tab !== "chat" || ended;
+    $("composer").hidden = ended;
     $("writeBtn").disabled = !!st.wrote_today || ended;
-    $("writeBtn").textContent = st.wrote_today ? "오늘은 이미 썼어요" : "편지 쓰기";
+    $("writeLabel").textContent = st.wrote_today ? "오늘은 이미 썼어요" : "편지 쓰기";
+    $("writeSub").textContent = ended ? "이제 편지를 쓸 수 없어요" : st.wrote_today ? "내일 또 쓸 수 있어요" : "하루 한 통 · 내일 정오에 도착해요";
     if (st.choice_open && !applyState._asked && Date.now() > (applyState._snooze || 0)) { applyState._asked = true; askChoice(); }
   }
 
@@ -177,40 +219,63 @@
 
   function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
+  const FIVE_MIN = 5 * 60000;
+  const close = (a, b) => a && b && a.s === b.s && a.s !== "system" && dayKey(a.at) === dayKey(b.at) && Math.abs(new Date(b.at) - new Date(a.at)) <= FIVE_MIN;
+
+  function introHTML() {
+    const day = S?.day ? ` · ${S.day}일째` : "";
+    return `<div class="intro"><span class="ring lg"><span class="av">${AV}</span></span>
+      <div class="intro-name">${hisName()}</div>
+      <div class="intro-sub">무명${day}</div>
+      <div class="intro-sub">이름 모르는 채로, 서른 날.</div>
+      <button class="pill" data-open="letters">편지함 보기</button></div>`;
+  }
+
+  function rowHTML(side, pos, content, meta, extra = "") {
+    return side === "her"
+      ? `<div class="row-msg her ${pos}${extra}">${meta}${content}</div>`
+      : `<div class="row-msg him ${pos}${extra}"><span class="mini av">${AV}</span>${content}${meta}</div>`;
+  }
+
   function renderMsgs(scroll) {
     const pane = $("chat");
     const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
     const box = $("msgs");
-    const parts = [];
-    let lastDay = null, prev = null;
+    const parts = [introHTML()];
+    let lastDay = null;
     msgs.sort((a, b) => (a.at === b.at ? a.id - b.id : a.at < b.at ? -1 : 1));
     for (let i = 0; i < msgs.length; i++) {
       const m = msgs[i];
       const dk = dayKey(m.at);
-      if (dk !== lastDay) { parts.push(`<div class="day-sep">${fmtDay.format(new Date(m.at))}</div>`); lastDay = dk; prev = null; }
-      if (m.s === "system") { parts.push(`<div class="sys">${esc(m.b)}</div>`); prev = null; continue; }
-      const next = msgs[i + 1];
+      if (dk !== lastDay) { parts.push(`<div class="day-sep">${fmtDay.format(new Date(m.at))}</div>`); lastDay = dk; }
+      if (m.s === "system") { parts.push(`<div class="sys">${esc(m.b)}</div>`); continue; }
+      const prev = msgs[i - 1], next = msgs[i + 1];
+      const withPrev = close(prev, m), withNext = close(m, next);
+      const pos = withPrev ? (withNext ? "mid" : "last") : (withNext ? "first" : "single");
       const sameMinNext = next && next.s === m.s && fmtTime.format(new Date(next.at)) === fmtTime.format(new Date(m.at)) && dayKey(next.at) === dk;
-      const newGroup = !prev || prev.s !== m.s || (new Date(m.at) - new Date(prev.at)) > 5 * 60000;
-      const time = sameMinNext ? "" : fmtTime.format(new Date(m.at));
-      const unread = m.s === "her" && m.id > readUpto ? '<span class="unread">1</span>' : "";
-      const meta = `<div class="meta">${unread}<span>${time}</span></div>`;
-      let content;
+      const meta = sameMinNext ? "" : `<div class="meta"><span>${fmtTime.format(new Date(m.at))}</span></div>`;
+      const extra = m.temp ? " temp" : "";
       if (m.k === "photo" && m.s === "him") {
-        content = `<div class="photo-card"><div class="ph">${PHOTO_ICON}</div>${m.d ? `<div class="desc">${esc(m.d)}</div>` : ""}</div>`;
-        if (m.b) content += `</div><div class="row-msg him"><div class="bubble">${esc(m.b)}</div>`;
-      } else if (m.k === "photo") {
+        const card = `<div class="photo-card"><div class="ph">${PHOTO_ICON}</div>${m.d ? `<div class="desc">${esc(m.d)}</div>` : ""}</div>`;
+        if (m.b) {
+          // 사진 + 한마디: 두 줄로 이어 붙이기
+          parts.push(rowHTML("him", withPrev ? "mid" : "first", card, ""));
+          parts.push(rowHTML("him", withNext ? "mid" : "last", `<div class="bubble">${esc(m.b)}</div>`, meta));
+        } else parts.push(rowHTML("him", pos, card, meta));
+        continue;
+      }
+      let content;
+      if (m.k === "photo") {
         const src = photoCache.get(m.p);
         content = `<img class="her-photo" data-photo="${m.p}" alt="보낸 사진" ${src ? `src="${src}"` : ""}>`;
-      } else {
-        content = `<div class="bubble">${esc(m.b)}</div>`;
-      }
-      if (m.s === "him" && newGroup) parts.push(`<div class="sender">${esc(S?.him || "태엽")}</div>`);
-      const gap = newGroup && m.s === "her" && prev ? " gap" : "";
-      parts.push(m.s === "her"
-        ? `<div class="row-msg her${gap}">${meta}${content}</div>`
-        : `<div class="row-msg him">${content}${meta}</div>`);
-      prev = m;
+      } else content = `<div class="bubble">${esc(m.b)}</div>`;
+      parts.push(rowHTML(m.s, pos, content, meta, extra));
+    }
+    // 마지막 말이 내 것이면 읽음 표시
+    const last = [...msgs].reverse().find((m) => m.s !== "system");
+    if (last && last.s === "her") {
+      const r = last.temp ? "보내는 중…" : last.id <= readUpto ? "읽음" : "전송됨";
+      parts.push(`<div class="receipt">${r}</div>`);
     }
     if (!msgs.length) parts.push(`<div class="empty">아직 아무 말도 오가지 않았어요.<br>먼저 편지함을 열어보세요.</div>`);
     box.innerHTML = parts.join("");
@@ -236,25 +301,25 @@
   // ───────── 탭
   function setTab(t) {
     tab = t;
-    for (const b of document.querySelectorAll(".tabs button")) b.classList.toggle("on", b.dataset.tab === t);
-    $("chat").hidden = t !== "chat";
     $("letters").hidden = t !== "letters";
     $("diary").hidden = t !== "diary";
-    $("composer").hidden = t !== "chat" || S?.phase === "ended";
     if (t === "letters") loadLetters();
     if (t === "diary") loadDiary();
     if (t === "chat") { renderMsgs(true); sync(); }
   }
-  for (const b of document.querySelectorAll(".tabs button")) b.addEventListener("click", () => setTab(b.dataset.tab));
 
   // ───────── 보내기
   const input = $("input");
-  function autosize() { input.style.height = "auto"; input.style.height = Math.min(120, input.scrollHeight) + "px"; }
+  function autosize() {
+    input.style.height = "auto"; input.style.height = Math.min(120, input.scrollHeight) + "px";
+    $("composer").classList.toggle("has-text", !!input.value.trim());
+  }
   input.addEventListener("input", autosize);
   const desktop = matchMedia("(pointer: fine)").matches;
   input.addEventListener("keydown", (e) => {
     if (desktop && e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
   });
+  $("sendBtn").addEventListener("mousedown", (e) => e.preventDefault()); // 키보드 안 내려가게
   $("sendBtn").addEventListener("click", () => { send(); input.focus(); });
 
   async function send() {
@@ -277,6 +342,7 @@
   }
 
   $("photoBtn").addEventListener("click", () => $("photoInput").click());
+  $("galleryBtn").addEventListener("click", () => $("photoInput").click());
   $("photoInput").addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -316,26 +382,40 @@
     } catch (e) { toast(e.message); }
   }
 
+  const fmtMD = new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric" });
+  function when(iso) {
+    const d = new Date(iso);
+    const k = dayKey(iso), today = dayKey(new Date().toISOString());
+    if (k === today) return fmtTime.format(d);
+    if (k === dayKey(new Date(Date.now() - 86400000).toISOString())) return "어제";
+    return fmtMD.format(d);
+  }
+
   function renderLetters() {
     const box = $("letterList");
     if (!lettersCache.length) { box.innerHTML = `<div class="empty">아직 편지가 없어요.</div>`; return; }
+    const me = esc(Array.from(S?.her || "나")[0] || "나");
+    const row = (cls, av, name, prev, time, dot, id) => {
+      const tag = id == null ? "div" : "button";
+      return `<${tag} class="lrow${cls}"${id == null ? "" : ` data-id="${id}"`}>${av}
+        <span class="lrow-main"><span class="lrow-name">${name}</span>
+        <span class="lrow-prev"><span class="txt">${prev}</span>${time ? `<span class="when">${time}</span>` : ""}</span></span>
+        ${dot ? '<i class="dot"></i>' : ""}</${tag}>`;
+    };
     box.innerHTML = lettersCache.map((l) => {
       if (l.pending) {
-        return `<div class="letter pending"><div class="l-top"><span class="l-from">${esc(S?.him || "태엽")}의 편지가 오고 있어요</span></div>
-          <div class="small muted">${fmtShort.format(new Date(l.at))} 도착 예정</div></div>`;
+        return row(" pending", `<span class="ring"><span class="av">${AV}</span></span>`, hisName(),
+          "편지가 오고 있어요", `${fmtShort.format(new Date(l.at))} 도착`, false);
       }
-      const first = String(l.body || "").split("\n").filter((x) => x.trim()).slice(0, 3).join(" ");
+      const first = esc(String(l.body || "").split("\n").filter((x) => x.trim()).slice(0, 2).join(" "));
       if (l.s === "him") {
-        return `<button class="letter${l.read ? "" : " unread"}" data-id="${l.id}">
-          <div class="l-top"><span class="l-from">${esc(S?.him || "태엽")}</span><span>${l.read ? "" : '<i class="dot"></i> '}${fmtShort.format(new Date(l.at))}</span></div>
-          <div class="l-prev">${esc(first)}</div></button>`;
+        return row(l.read ? "" : " unread", `<span class="av">${AV}</span>`, hisName(), first, when(l.at), !l.read, l.id);
       }
       const arrived = new Date(l.arrives) <= new Date();
-      return `<button class="letter" data-id="${l.id}">
-        <div class="l-top"><span class="l-from">내가 쓴 편지</span><span>${arrived ? "도착함" : fmtShort.format(new Date(l.arrives)) + " 도착 예정"}</span></div>
-        <div class="l-prev">${esc(first)}</div></button>`;
+      return row("", `<span class="av me">${me}</span>`, "내가 쓴 편지", first,
+        arrived ? "도착함" : `${fmtShort.format(new Date(l.arrives))} 도착 예정`, false, l.id);
     }).join("");
-    for (const el of box.querySelectorAll("button.letter")) el.addEventListener("click", () => openLetter(Number(el.dataset.id)));
+    for (const el of box.querySelectorAll("button.lrow")) el.addEventListener("click", () => openLetter(Number(el.dataset.id)));
   }
 
   function openLetter(id) {
@@ -346,7 +426,7 @@
     $("paperRead").hidden = false;
     $("paperWriteWrap").hidden = true;
     $("paperSend").hidden = true;
-    $("paper").hidden = false;
+    openLayer("paper", () => ($("paper").hidden = false));
     $("paperRead").scrollTop = 0;
     if (l.s === "him" && !l.read) {
       l.read = true;
@@ -362,12 +442,12 @@
     $("paperSend").hidden = false;
     $("paperWrite").value = store.get("mm_draft") || "";
     countLetter();
-    $("paper").hidden = false;
+    openLayer("paper", () => ($("paper").hidden = false));
     setTimeout(() => $("paperWrite").focus(), 80);
   });
   function countLetter() { $("paperCount").textContent = `${$("paperWrite").value.length}자`; store.set("mm_draft", $("paperWrite").value); }
   $("paperWrite").addEventListener("input", countLetter);
-  $("paperClose").addEventListener("click", () => { $("paper").hidden = true; });
+  $("paperClose").addEventListener("click", () => goBack("paper"));
   $("paperSend").addEventListener("click", async () => {
     const body = $("paperWrite").value.trim();
     if (body.length < 10) { toast("조금만 더 써 주세요"); return; }
@@ -376,7 +456,7 @@
     try {
       await api("letter_send", { body });
       store.del("mm_draft");
-      $("paper").hidden = true;
+      goBack("paper");
       toast("보냈어요. 내일 정오에 도착해요.", 3000);
       await sync(); loadLetters();
     } catch (e) { toast(e.message, 3200); }
@@ -410,11 +490,9 @@
   }
 
   // ───────── 설정·알림
-  $("gear").addEventListener("click", () => { $("settings").hidden = false; pushHelp(); });
-  $("settingsClose").addEventListener("click", () => ($("settings").hidden = true));
   $("logout").addEventListener("click", async () => {
     const ok = await modal("이 기기를 잠글까요?\n다시 열려면 암호가 필요해요.", [{ label: "잠그기", value: true, primary: true }, { label: "취소", value: false }]);
-    if (ok) { $("settings").hidden = true; lock(); }
+    if (ok) lock();
   });
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
