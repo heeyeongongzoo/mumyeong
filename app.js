@@ -47,7 +47,7 @@
   // ───────── 아바타
   const AV = '<svg viewBox="0 0 24 24"><path d="M12.00 11.40 L12.15 11.34 L12.32 11.32 L12.51 11.35 L12.70 11.43 L12.88 11.57 L13.03 11.76 L13.13 11.99 L13.18 12.26 L13.16 12.54 L13.07 12.83 L12.90 13.11 L12.67 13.35 L12.37 13.54 L12.02 13.66 L11.64 13.70 L11.24 13.64 L10.85 13.49 L10.49 13.25 L10.18 12.92 L9.95 12.51 L9.81 12.05 L9.78 11.55 L9.87 11.03 L10.08 10.54 L10.40 10.09 L10.83 9.72 L11.34 9.44 L11.92 9.29 L12.54 9.26 L13.17 9.38 L13.76 9.64 L14.30 10.04 L14.74 10.57 L15.06 11.19 L15.24 11.89 L15.26 12.62 L15.11 13.36 L14.79 14.06 L14.32 14.68 L13.70 15.20 L12.97 15.57 L12.16 15.77 L11.31 15.79 L10.45 15.61 L9.65 15.24 L8.93 14.68 L8.35 13.97 L7.93 13.14 L7.70 12.21 L7.69 11.24 L7.89 10.27 L8.32 9.36 L8.94 8.56 L9.75 7.90 L10.69 7.43 L11.73 7.18 L12.82 7.16 L13.90 7.39 L14.92 7.87 L15.81 8.57 L16.55 9.46 L17.07 10.51 L17.35 11.66 L17.37 12.87 L17.11 14.06 L16.59 15.19 L15.82 16.18 L14.83 16.99 L13.68 17.57 L12.41 17.87 L11.09 17.89 L9.78 17.62 L8.54 17.05 L7.46 16.21 L6.57 15.13 L5.94 13.88 L5.60 12.49 L5.58 11.05 L5.88 9.62 L6.49 8.28 L7.40 7.10 L8.56 6.14 L9.92 5.45 L11.42 5.08 L12.98 5.05 L14.52 5.36 L15.97 6.03 L17.25 7.00 L18.29 8.25 L19.04 9.71" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   document.querySelectorAll("[data-av]").forEach((el) => (el.innerHTML = AV));
-  const hisName = () => esc(S?.him || "태엽");
+  const hisName = () => esc(S?.him || "그");
 
   // ───────── 겹쳐 열리는 화면(편지함·일기·정보·편지지): 안드로이드 뒤로가기도 받기
   const layers = [];
@@ -120,7 +120,7 @@
   // ───────── 시작
   $("startBtn").addEventListener("click", async () => {
     const name = $("codename").value.trim();
-    if (!name) { $("onbErr").textContent = "닉네임을 정해 주세요"; return; }
+    if (!name) { $("onbErr").textContent = "가명을 정해 주세요"; return; }
     const ok = await modal(`'${name}'(으)로 시작할까요?\n시작하는 순간부터 30일이 흐릅니다.`, [{ label: "시작", value: true, primary: true }, { label: "조금 더 생각할게요", value: false }]);
     if (!ok) return;
     $("startBtn").disabled = true;
@@ -151,8 +151,8 @@
 
   function applyState(st) {
     S = st;
-    $("hisName").textContent = st.him || "태엽";
-    $("infoName").textContent = st.him || "태엽";
+    $("hisName").textContent = st.him || "";
+    $("infoName").textContent = st.him || "";
     $("status").textContent = st.status || "";
     $("infoStatus").textContent = st.status || "";
     $("presence").textContent = st.presence || "";
@@ -421,7 +421,7 @@
   function openLetter(id) {
     const l = lettersCache.find((x) => x.id === id);
     if (!l) return;
-    $("paperTitle").textContent = l.s === "him" ? `${S?.him || "태엽"}의 편지` : "내가 쓴 편지";
+    $("paperTitle").textContent = l.s === "him" ? `${S?.him || "그"}의 편지` : "내가 쓴 편지";
     $("paperRead").textContent = l.body;
     $("paperRead").hidden = false;
     $("paperWriteWrap").hidden = true;
@@ -474,13 +474,13 @@
 
   // ───────── 30일째 밤
   async function askChoice() {
-    const v = await modal("30일째 밤입니다.\n이름을 교환할까요?\n\n두 사람 모두 원할 때만 이름이 건너갑니다.", [
-      { label: "이름을 알려줄게요", value: "continue", primary: true },
+    const v = await modal("30일째 밤입니다.\n진짜 이름을 교환할까요?\n\n두 사람 모두 원할 때만 이름이 건너갑니다.", [
+      { label: "진짜 이름을 알려줄게요", value: "continue", primary: true },
       { label: "여기서 끝낼게요", value: "end" },
       { label: "조금 이따 고를게요", value: null },
     ]);
     if (!v) { applyState._snooze = Date.now() + 10 * 60000; applyState._asked = false; return; }
-    const sure = await modal(v === "continue" ? "이름을 알려주기로 할까요?" : "여기서 끝내기로 할까요?\n그는 끝까지 당신의 이름을 모릅니다.", [{ label: "네", value: true, primary: true }, { label: "다시 생각할게요", value: false }]);
+    const sure = await modal(v === "continue" ? "진짜 이름을 알려주기로 할까요?" : "여기서 끝내기로 할까요?\n그는 끝까지 당신의 진짜 이름을 모릅니다.", [{ label: "네", value: true, primary: true }, { label: "다시 생각할게요", value: false }]);
     if (!sure) { applyState._asked = false; return; }
     try {
       await api("choose", { choice: v });

@@ -96,6 +96,7 @@ input, textarea { font: inherit; color: inherit; }
   width: 100%; border: 1px solid var(--line); background: var(--bg-2); border-radius: 8px; padding: 13px 14px; outline: none; font-size: 15px;
 }
 #pass:focus, #codename:focus { border-color: var(--mute); }
+.field-label { font-size: 13px; font-weight: 600; color: var(--mute); margin: 4px 2px -4px; }
 .auth-foot { color: var(--mute); font-size: 12.5px; margin: 0; padding-top: 16px; }
 .rules { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 16px; }
 .rules li { display: flex; gap: 14px; align-items: flex-start; }

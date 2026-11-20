@@ -41,11 +41,12 @@
       <div class="logo serif">무명</div>
       <p class="auth-sub">이름 모르는 채로, 서른 날.</p>
       <ol class="rules">
-        <li><i>1</i><p>실명·얼굴·연락처·직장 이름은 묻지도 말하지도 않아요. 그 밖의 삶은 얼마든지.</p></li>
+        <li><i>1</i><p>서로 가명으로 불러요. 진짜 이름과 성, 얼굴·연락처·직장 이름은 묻지도 말하지도 않아요. 그 밖의 삶은 얼마든지.</p></li>
         <li><i>2</i><p>톡은 자유롭게. 편지는 하루 한 통, 쓴 다음 날 정오에 도착해요.</p></li>
-        <li><i>3</i><p>30일째 밤, 두 사람 모두 원하면 이름을 교환해요. 한 사람이라도 원하지 않으면 그대로 모르는 사이로 끝나요.</p></li>
+        <li><i>3</i><p>30일째 밤, 두 사람 모두 원하면 진짜 이름을 교환해요. 한 사람이라도 원하지 않으면 가명으로만 아는 사이로 끝나요.</p></li>
       </ol>
-      <input id="codename" maxlength="12" placeholder="무명에서 쓸 닉네임">
+      <label class="field-label" for="codename">무명에서 쓸 가명</label>
+      <input id="codename" maxlength="12" value="다온" placeholder="가명">
       <button id="startBtn" class="btn primary wide">매칭 시작</button>
       <p id="onbErr" class="err small"></p>
     </div>
@@ -57,7 +58,7 @@
       <button class="who" data-open="settings" aria-label="상대 정보">
         <span class="ring"><span class="av" data-av></span></span>
         <span class="who-text">
-          <span class="name"><span id="hisName">태엽</span><span id="dday" class="dday"></span></span>
+          <span class="name"><span id="hisName"></span><span id="dday" class="dday"></span></span>
           <span class="sub"><span id="presence"></span><span id="status"></span></span>
         </span>
       </button>
@@ -133,7 +134,7 @@
       <div class="page-body">
         <div class="profile">
           <span class="ring xl"><span class="av" data-av></span></span>
-          <div id="infoName" class="p-name">태엽</div>
+          <div id="infoName" class="p-name"></div>
           <div id="infoStatus" class="p-sub"></div>
           <div class="days">
             <div class="days-bar"><i id="dayBar"></i></div>
@@ -143,7 +144,7 @@
 
         <div class="group-label">나</div>
         <div class="group">
-          <div class="cell"><span>내 닉네임</span><span id="myName" class="muted"></span></div>
+          <div class="cell"><span>내 가명</span><span id="myName" class="muted"></span></div>
         </div>
 
         <div class="group-label">알림</div>
