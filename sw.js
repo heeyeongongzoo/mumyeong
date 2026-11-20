@@ -1,5 +1,5 @@
 /* 무명 서비스 워커: 오프라인 셸 + 푸시 알림 */
-const CACHE = "mumyeong-v2";
+const CACHE = "mumyeong-v6";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -9,7 +9,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    for (const k of await caches.keys()) if (k.startsWith("mumyeong-") && k !== CACHE) await caches.delete(k);
     await self.clients.claim();
   })());
 });

@@ -19,6 +19,7 @@
   let S = null; // 서버 상태
   let vapid = null;
   let msgs = []; // 화면에 있는 메시지
+  let nextLocalMessageId = 0;
   const seen = new Set();
   let cursor = null;
   let readUpto = 0;
@@ -47,34 +48,55 @@
   // ───────── 아바타
   const AV = '<svg viewBox="0 0 24 24"><path d="M12.00 11.40 L12.15 11.34 L12.32 11.32 L12.51 11.35 L12.70 11.43 L12.88 11.57 L13.03 11.76 L13.13 11.99 L13.18 12.26 L13.16 12.54 L13.07 12.83 L12.90 13.11 L12.67 13.35 L12.37 13.54 L12.02 13.66 L11.64 13.70 L11.24 13.64 L10.85 13.49 L10.49 13.25 L10.18 12.92 L9.95 12.51 L9.81 12.05 L9.78 11.55 L9.87 11.03 L10.08 10.54 L10.40 10.09 L10.83 9.72 L11.34 9.44 L11.92 9.29 L12.54 9.26 L13.17 9.38 L13.76 9.64 L14.30 10.04 L14.74 10.57 L15.06 11.19 L15.24 11.89 L15.26 12.62 L15.11 13.36 L14.79 14.06 L14.32 14.68 L13.70 15.20 L12.97 15.57 L12.16 15.77 L11.31 15.79 L10.45 15.61 L9.65 15.24 L8.93 14.68 L8.35 13.97 L7.93 13.14 L7.70 12.21 L7.69 11.24 L7.89 10.27 L8.32 9.36 L8.94 8.56 L9.75 7.90 L10.69 7.43 L11.73 7.18 L12.82 7.16 L13.90 7.39 L14.92 7.87 L15.81 8.57 L16.55 9.46 L17.07 10.51 L17.35 11.66 L17.37 12.87 L17.11 14.06 L16.59 15.19 L15.82 16.18 L14.83 16.99 L13.68 17.57 L12.41 17.87 L11.09 17.89 L9.78 17.62 L8.54 17.05 L7.46 16.21 L6.57 15.13 L5.94 13.88 L5.60 12.49 L5.58 11.05 L5.88 9.62 L6.49 8.28 L7.40 7.10 L8.56 6.14 L9.92 5.45 L11.42 5.08 L12.98 5.05 L14.52 5.36 L15.97 6.03 L17.25 7.00 L18.29 8.25 L19.04 9.71" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   document.querySelectorAll("[data-av]").forEach((el) => (el.innerHTML = AV));
-  const hisName = () => esc(S?.him || "태엽");
+  const hisName = () => !S?.him || S.him === "태엽" ? "이도현" : S.him;
 
-  // ───────── 겹쳐 열리는 화면(편지함·일기·정보·편지지): 안드로이드 뒤로가기도 받기
-  const layers = [];
-  function showLayer(name) {
-    if (name === "letters" || name === "diary") setTab(name);
-    else if (name === "settings") { $("settings").hidden = false; pushHelp(); }
+  // ───────── 화면 탐색
+  const views = new Map([["chat", "chatView"], ["letters", "letters"], ["diary", "diary"], ["settings", "settings"]]);
+  const navItems = document.querySelectorAll(".nav-item");
+  const chatPane = $("chat");
+  const jumpButton = $("jumpLatest");
+  let readingOffset = null;
+  let paperTrigger;
+  function availableView(view) {
+    return views.has(view) && (view !== "diary" || !$("diaryTab").hidden) ? view : "chat";
   }
-  function hideLayer(name) {
-    if (name === "letters" || name === "diary") { if (tab === name) setTab("chat"); }
-    else $(name).hidden = true;
+  function navigate(view, replace = false) {
+    view = availableView(view);
+    if (replace || history.state?.paper) history.replaceState({ view }, "");
+    else if (history.state?.view !== view) history.pushState({ view }, "");
+    hidePaper();
+    setTab(view);
   }
-  function openLayer(name, fn) {
-    if (fn) fn(); else showLayer(name);
-    if (layers[layers.length - 1] === name) return;
-    layers.push(name);
-    try { history.pushState({ mm: layers.length }, ""); } catch { /* noop */ }
+  function updateInert() {
+    const modalOpen = !$("modal").hidden;
+    $("app").inert = modalOpen || !$("paper").hidden;
+    $("paper").inert = modalOpen;
+    $("onboard").inert = modalOpen;
   }
-  function goBack(name) {
-    if (layers[layers.length - 1] === name) history.back();
-    else hideLayer(name);
+  function hidePaper() {
+    if ($("paper").hidden) return;
+    $("paper").hidden = true;
+    updateInert();
+    const target = paperTrigger?.isConnected && !paperTrigger.disabled
+      ? paperTrigger
+      : document.querySelector(".nav-item[aria-current]");
+    target?.focus({ preventScroll: true });
+    paperTrigger = null;
   }
-  window.addEventListener("popstate", () => { const top = layers.pop(); if (top) hideLayer(top); });
+  function closePaper() {
+    if (history.state?.paper) history.back();
+    else hidePaper();
+  }
+  window.addEventListener("popstate", ({ state }) => {
+    if ($("app").hidden) return;
+    const view = availableView(state?.view);
+    if (view !== tab) setTab(view);
+    if (view === "letters" && state?.paper) showPaper(state.paper);
+    else hidePaper();
+  });
   document.addEventListener("click", (e) => {
-    const o = e.target.closest("[data-open]");
-    if (o) { if (o.dataset.open === "diary" && $("diaryTab").hidden) return; openLayer(o.dataset.open); return; }
-    const b = e.target.closest("[data-back]");
-    if (b) goBack(b.dataset.back);
+    const button = e.target.closest("[data-view]");
+    if (button) navigate(button.dataset.view);
   });
 
   // ───────── 화면 전환
@@ -83,8 +105,9 @@
   }
   function lock() {
     token = null; store.del("mm_token");
-    for (const id of ["settings", "paper", "letters", "diary"]) $(id).hidden = true;
-    layers.length = 0; tab = "chat";
+    hidePaper();
+    history.replaceState({ view: "chat" }, "");
+    clearTimeout(pollTimer);
     show("lock"); setTimeout(() => $("pass").focus(), 50);
   }
   function toast(t, ms = 2400) {
@@ -93,48 +116,65 @@
   }
   function modal(text, buttons) {
     return new Promise((resolve) => {
+      const trigger = document.activeElement;
       $("modalText").textContent = text;
       const box = $("modalBtns"); box.innerHTML = "";
       for (const b of buttons) {
         const el = document.createElement("button");
         el.className = "btn " + (b.primary ? "primary" : "");
         el.textContent = b.label;
-        el.onclick = () => { $("modal").hidden = true; resolve(b.value); };
+        el.onclick = () => {
+          $("modal").hidden = true;
+          updateInert();
+          trigger?.focus({ preventScroll: true });
+          resolve(b.value);
+        };
         box.appendChild(el);
       }
       $("modal").hidden = false;
+      updateInert();
+      box.lastElementChild?.focus();
     });
   }
 
   // ───────── 잠금
   $("lockForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const submit = e.currentTarget.querySelector("button[type=submit]");
+    if (submit.disabled) return;
+    submit.disabled = true;
     $("lockErr").textContent = "";
     try {
       const r = await api("login", { passcode: $("pass").value, label: navigator.userAgent.slice(0, 60) });
       token = r.token; store.set("mm_token", token); $("pass").value = "";
       await boot();
     } catch (err) { $("lockErr").textContent = err.message; }
+    finally { submit.disabled = false; }
   });
 
   // ───────── 시작
-  $("startBtn").addEventListener("click", async () => {
+  $("startForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const submit = $("startBtn");
+    if (submit.disabled) return;
+    $("onbErr").textContent = "";
     const name = $("codename").value.trim();
-    if (!name) { $("onbErr").textContent = "닉네임을 정해 주세요"; return; }
-    const ok = await modal(`'${name}'(으)로 시작할까요?\n시작하는 순간부터 30일이 흐릅니다.`, [{ label: "시작", value: true, primary: true }, { label: "조금 더 생각할게요", value: false }]);
-    if (!ok) return;
-    $("startBtn").disabled = true;
+    if (!name) { $("onbErr").textContent = "이름을 입력해 주세요."; return; }
+    if (!CFG.preview) {
+      const ok = await modal(`${name} 이름으로 시작할까요?\n오늘부터 30일이에요.`, [{ label: "시작", value: true, primary: true }, { label: "취소", value: false }]);
+      if (!ok) return;
+    }
+    submit.disabled = true;
     try {
       await api("start", { codename: name });
-      await boot();
-      setTab("letters");
-      toast("매칭됐어요. 상대의 첫 편지가 곧 도착해요.", 3800);
+      await boot("letters");
+      toast(S.unread_letters ? "첫 편지가 도착했어요." : "첫 편지가 곧 도착해요.");
     } catch (err) { $("onbErr").textContent = err.message; }
-    $("startBtn").disabled = false;
+    finally { submit.disabled = false; }
   });
 
   // ───────── 부팅·동기화
-  async function boot() {
+  async function boot(initialView) {
     if (!CFG.api) { document.body.innerHTML = "<p style='padding:24px'>config.js의 api 주소를 확인하세요.</p>"; return; }
     if (!token) { lock(); return; }
     const r = await api("boot", { visible: !document.hidden, chat_visible: false });
@@ -143,37 +183,48 @@
     if (S.phase === "onboarding") { show("onboard"); return; }
     show("app");
     msgs = []; seen.clear(); $("msgs").innerHTML = "";
+    readingOffset = null;
+    readUpto = 0;
+    cursor = null;
     ingest(r);
     const q = new URLSearchParams(location.search).get("tab");
-    setTab(q === "letters" ? "letters" : tab);
+    navigate(initialView || (q === "letters" ? "letters" : history.state?.view || "chat"), true);
     schedulePoll(400);
   }
 
   function applyState(st) {
     S = st;
-    $("hisName").textContent = st.him || "태엽";
-    $("infoName").textContent = st.him || "태엽";
+    const name = hisName();
+    $("hisName").textContent = name;
+    $("infoName").textContent = name;
+    $("diaryTitle").textContent = `${name}의 일기`;
     $("status").textContent = st.status || "";
     $("infoStatus").textContent = st.status || "";
     $("presence").textContent = st.presence || "";
-    $("dday").textContent = st.day ? `${st.day}일째` : "";
-    $("dayText").textContent = st.day ? `${st.day}일째` : "";
-    $("dayBar").style.width = st.day ? `${Math.min(100, (st.day / 30) * 100)}%` : "0";
-    $("myName").textContent = st.her || "";
+    const day = st.day ? `${st.day}일째` : "";
+    const progress = `${Math.max(0, Math.min(100, (Number(st.day) || 0) / 30 * 100))}%`;
+    for (const id of ["dday", "dayText", "sidebarDay"]) $(id).textContent = day;
+    for (const id of ["dayBar", "sidebarBar"]) $(id).style.width = progress;
+    for (const id of ["profileProgress", "sidebarProgress"]) $(id).hidden = !day;
+    $("myName").textContent = st.her || "한윤서";
     const unread = st.unread_letters;
     $("letterBadge").hidden = !unread;
-    $("letterBadge").textContent = typeof unread === "number" && unread > 0 ? (unread > 9 ? "9+" : String(unread)) : "";
+    const lettersButton = $("letterBadge").closest("button");
+    const unreadLabel = typeof unread === "number" ? `${unread}통` : "있음";
+    lettersButton.setAttribute("aria-label", unread ? `편지함, 읽지 않은 편지 ${unreadLabel}` : "편지함");
     $("diaryTab").hidden = !st.diary;
     $("aiBanner").hidden = st.ai_ready !== false;
     const ended = st.phase === "ended";
     $("composer").hidden = ended;
     $("writeBtn").disabled = !!st.wrote_today || ended;
-    $("writeLabel").textContent = st.wrote_today ? "오늘은 이미 썼어요" : "편지 쓰기";
-    $("writeSub").textContent = ended ? "이제 편지를 쓸 수 없어요" : st.wrote_today ? "내일 또 쓸 수 있어요" : "하루 한 통 · 내일 정오에 도착해요";
+    $("writeStatus").hidden = !$("writeBtn").disabled;
+    $("writeStatus").textContent = ended ? "편지 쓰기가 끝났어요." : st.wrote_today ? "오늘은 이미 편지를 보냈어요." : "";
     if (st.choice_open && !applyState._asked && Date.now() > (applyState._snooze || 0)) { applyState._asked = true; askChoice(); }
   }
 
-  function ingest(r) {
+  function ingest(r, phaseChanged = false) {
+    const previousRead = readUpto;
+    const previousTyping = typing;
     if (r.cursor) cursor = r.cursor;
     readUpto = Math.max(readUpto, r.read_upto || 0);
     typing = !!r.typing;
@@ -183,7 +234,9 @@
       if (seen.has(m.id)) continue;
       seen.add(m.id); msgs.push(m); added = true;
     }
-    renderMsgs(added);
+    if (added || phaseChanged || previousRead !== readUpto || previousTyping !== typing || !$("msgs").firstElementChild) {
+      renderMsgs(false);
+    }
   }
 
   async function sync() {
@@ -191,8 +244,9 @@
     syncing = true;
     try {
       const r = await api("sync", { cursor, visible: !document.hidden, chat_visible: !document.hidden && tab === "chat" });
+      const phaseChanged = S.phase !== r.state.phase;
       applyState(r.state);
-      ingest(r);
+      ingest(r, phaseChanged);
       if (tab === "letters" && r.state.unread_letters !== lettersCache.filter((l) => l.s === "him" && !l.read && !l.pending).length) loadLetters();
     } catch (e) { /* 다음 차례에 */ }
     syncing = false;
@@ -220,28 +274,21 @@
   function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
   const FIVE_MIN = 5 * 60000;
-  const close = (a, b) => a && b && a.s === b.s && a.s !== "system" && dayKey(a.at) === dayKey(b.at) && Math.abs(new Date(b.at) - new Date(a.at)) <= FIVE_MIN;
-
-  function introHTML() {
-    const day = S?.day ? ` · ${S.day}일째` : "";
-    return `<div class="intro"><span class="ring lg"><span class="av">${AV}</span></span>
-      <div class="intro-name">${hisName()}</div>
-      <div class="intro-sub">무명${day}</div>
-      <div class="intro-sub">이름 모르는 채로, 서른 날.</div>
-      <button class="pill" data-open="letters">편지함 보기</button></div>`;
-  }
+  const close = (a, b) => a && b && a.delivery !== "failed" && b.delivery !== "failed" &&
+    a.s === b.s && a.s !== "system" && dayKey(a.at) === dayKey(b.at) && Math.abs(new Date(b.at) - new Date(a.at)) <= FIVE_MIN;
 
   function rowHTML(side, pos, content, meta, extra = "") {
     return side === "her"
       ? `<div class="row-msg her ${pos}${extra}">${meta}${content}</div>`
-      : `<div class="row-msg him ${pos}${extra}"><span class="mini av">${AV}</span>${content}${meta}</div>`;
+      : `<div class="row-msg him ${pos}${extra}"><span class="mini av" aria-hidden="true">${AV}</span>${content}${meta}</div>`;
   }
 
   function renderMsgs(scroll) {
-    const pane = $("chat");
-    const nearBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 140;
+    const previousTop = chatPane.scrollTop;
+    const followLatest = scroll || !awayFromLatest();
     const box = $("msgs");
-    const parts = [introHTML()];
+    const focusedRetry = document.activeElement?.dataset.retryMessage;
+    const parts = [];
     let lastDay = null;
     msgs.sort((a, b) => (a.at === b.at ? a.id - b.id : a.at < b.at ? -1 : 1));
     for (let i = 0; i < msgs.length; i++) {
@@ -249,12 +296,17 @@
       const dk = dayKey(m.at);
       if (dk !== lastDay) { parts.push(`<div class="day-sep">${fmtDay.format(new Date(m.at))}</div>`); lastDay = dk; }
       if (m.s === "system") { parts.push(`<div class="sys">${esc(m.b)}</div>`); continue; }
+      if (m.delivery === "failed") {
+        parts.push(rowHTML("her", "single", `<div class="bubble" id="failed-message-${m.id}">${esc(m.b)}</div>`, ""));
+        parts.push(`<div class="receipt failed-receipt"><span>전송 실패</span><button type="button" data-retry-message="${m.id}" aria-describedby="failed-message-${m.id}"${S?.phase === "ended" ? " disabled" : ""}>다시 보내기</button></div>`);
+        continue;
+      }
       const prev = msgs[i - 1], next = msgs[i + 1];
       const withPrev = close(prev, m), withNext = close(m, next);
       const pos = withPrev ? (withNext ? "mid" : "last") : (withNext ? "first" : "single");
-      const sameMinNext = next && next.s === m.s && fmtTime.format(new Date(next.at)) === fmtTime.format(new Date(m.at)) && dayKey(next.at) === dk;
+      const sameMinNext = next && next.delivery !== "failed" && next.s === m.s && fmtTime.format(new Date(next.at)) === fmtTime.format(new Date(m.at)) && dayKey(next.at) === dk;
       const meta = sameMinNext ? "" : `<div class="meta"><span>${fmtTime.format(new Date(m.at))}</span></div>`;
-      const extra = m.temp ? " temp" : "";
+      const extra = m.delivery === "sending" ? " temp" : "";
       if (m.k === "photo" && m.s === "him") {
         const card = `<div class="photo-card"><div class="ph">${PHOTO_ICON}</div>${m.d ? `<div class="desc">${esc(m.d)}</div>` : ""}</div>`;
         if (m.b) {
@@ -273,16 +325,38 @@
     }
     // 마지막 말이 내 것이면 읽음 표시
     const last = [...msgs].reverse().find((m) => m.s !== "system");
-    if (last && last.s === "her") {
-      const r = last.temp ? "보내는 중…" : last.id <= readUpto ? "읽음" : "전송됨";
+    if (last && last.s === "her" && last.delivery !== "failed") {
+      const r = last.delivery === "sending" ? "보내는 중…" : last.id <= readUpto ? "읽음" : "전송됨";
       parts.push(`<div class="receipt">${r}</div>`);
     }
-    if (!msgs.length) parts.push(`<div class="empty">아직 아무 말도 오가지 않았어요.<br>먼저 편지함을 열어보세요.</div>`);
+    if (!msgs.length) parts.push(`<div class="empty">아직 오간 대화가 없어요.</div>`);
     box.innerHTML = parts.join("");
+    if (focusedRetry) box.querySelector(`[data-retry-message="${focusedRetry}"]`)?.focus({ preventScroll: true });
     $("typing").hidden = !typing;
     loadPhotos();
-    if (scroll || nearBottom) requestAnimationFrame(() => (pane.scrollTop = pane.scrollHeight));
+    if ($("chatView").hidden) return;
+    if (followLatest) scrollToLatest();
+    else { chatPane.scrollTop = previousTop; updateJump(); }
   }
+
+  function awayFromLatest() {
+    return chatPane.scrollHeight - chatPane.scrollTop - chatPane.clientHeight > 140;
+  }
+  function updateJump() {
+    if ($("chatView").hidden) return;
+    const away = awayFromLatest();
+    readingOffset = away ? chatPane.scrollTop : null;
+    jumpButton.hidden = !away;
+  }
+  function scrollToLatest() {
+    chatPane.scrollTop = chatPane.scrollHeight;
+    updateJump();
+  }
+  chatPane.addEventListener("scroll", updateJump, { passive: true });
+  jumpButton.addEventListener("click", () => {
+    chatPane.focus({ preventScroll: true });
+    scrollToLatest();
+  });
 
   async function loadPhotos() {
     for (const img of document.querySelectorAll("img[data-photo]:not([src])")) {
@@ -301,48 +375,71 @@
   // ───────── 탭
   function setTab(t) {
     tab = t;
-    $("letters").hidden = t !== "letters";
-    $("diary").hidden = t !== "diary";
+    for (const [view, id] of views) $(id).hidden = view !== t;
+    for (const item of navItems) {
+      if (item.dataset.view === t) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    }
     if (t === "letters") loadLetters();
     if (t === "diary") loadDiary();
-    if (t === "chat") { renderMsgs(true); sync(); }
+    if (t === "settings") pushHelp();
+    if (t === "chat") {
+      if (readingOffset == null) scrollToLatest();
+      else { chatPane.scrollTop = readingOffset; updateJump(); }
+      sync();
+    }
   }
 
   // ───────── 보내기
   const input = $("input");
   function autosize() {
     input.style.height = "auto"; input.style.height = Math.min(120, input.scrollHeight) + "px";
-    $("composer").classList.toggle("has-text", !!input.value.trim());
+    $("sendBtn").disabled = !input.value.trim();
   }
   input.addEventListener("input", autosize);
   const desktop = matchMedia("(pointer: fine)").matches;
   input.addEventListener("keydown", (e) => {
-    if (desktop && e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    if (desktop && e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); send(); }
   });
   $("sendBtn").addEventListener("mousedown", (e) => e.preventDefault()); // 키보드 안 내려가게
   $("sendBtn").addEventListener("click", () => { send(); input.focus(); });
+  $("msgs").addEventListener("click", (e) => {
+    const button = e.target.closest("[data-retry-message]");
+    if (!button || S?.phase === "ended") return;
+    const message = msgs.find((m) => m.id === Number(button.dataset.retryMessage) && m.delivery === "failed");
+    if (message) sendMessage(message);
+  });
 
-  async function send() {
+  function send() {
     const text = input.value.trim();
-    if (!text) return;
+    if (!text || !token || S?.phase === "ended") return;
     input.value = ""; autosize();
-    const temp = { id: -Date.now(), s: "her", k: "text", b: text, at: new Date().toISOString(), temp: true };
-    msgs.push(temp); renderMsgs(true);
+    const message = { id: --nextLocalMessageId, s: "her", k: "text", b: text, at: new Date().toISOString() };
+    msgs.push(message);
+    sendMessage(message, true);
+  }
+
+  async function sendMessage(message, scroll = false) {
+    const requestToken = token;
+    message.delivery = "sending";
+    renderMsgs(scroll);
     try {
-      const r = await api("send", { text });
-      msgs = msgs.filter((m) => m !== temp);
+      const r = await api("send", { text: message.b });
+      if (token !== requestToken || !msgs.includes(message)) return;
       if (!seen.has(r.message.id)) { seen.add(r.message.id); msgs.push(r.message); }
-      renderMsgs(true);
-      schedulePoll(2500);
+      msgs = msgs.filter((m) => m !== message);
     } catch (e) {
-      msgs = msgs.filter((m) => m !== temp); renderMsgs(true);
-      input.value = text; autosize();
-      toast(e.message);
+      if (token !== requestToken || !msgs.includes(message)) return;
+      message.delivery = "failed";
+      renderMsgs(false);
+      toast(e.message || "메시지를 보내지 못했어요");
+      return;
     }
+    renderMsgs(false);
+    schedulePoll(2500);
   }
 
   $("photoBtn").addEventListener("click", () => $("photoInput").click());
-  $("galleryBtn").addEventListener("click", () => $("photoInput").click());
   $("photoInput").addEventListener("change", async (e) => {
     const f = e.target.files?.[0];
     e.target.value = "";
@@ -375,11 +472,16 @@
 
   // ───────── 편지
   async function loadLetters() {
+    const list = $("letterList");
+    if (!list.childElementCount) list.innerHTML = `<div class="empty" role="status">편지를 불러오는 중…</div>`;
     try {
       const r = await api("letters");
       lettersCache = r.letters;
       renderLetters();
-    } catch (e) { toast(e.message); }
+    } catch (e) {
+      if (lettersCache.length) toast(e.message);
+      else list.innerHTML = `<div class="empty" role="status">${esc(e.message)}</div>`;
+    }
   }
 
   const fmtMD = new Intl.DateTimeFormat("ko-KR", { timeZone: TZ, month: "long", day: "numeric" });
@@ -395,97 +497,124 @@
     const box = $("letterList");
     if (!lettersCache.length) { box.innerHTML = `<div class="empty">아직 편지가 없어요.</div>`; return; }
     const me = esc(Array.from(S?.her || "나")[0] || "나");
+    const name = esc(hisName());
     const row = (cls, av, name, prev, time, dot, id) => {
-      const tag = id == null ? "div" : "button";
-      return `<${tag} class="lrow${cls}"${id == null ? "" : ` data-id="${id}"`}>${av}
-        <span class="lrow-main"><span class="lrow-name">${name}</span>
-        <span class="lrow-prev"><span class="txt">${prev}</span>${time ? `<span class="when">${time}</span>` : ""}</span></span>
-        ${dot ? '<i class="dot"></i>' : ""}</${tag}>`;
+      const previewId = id == null ? "" : `letter-preview-${Number(id)}`;
+      const title = id == null
+        ? `<span class="lrow-name">${name}</span>`
+        : `<button class="lrow-name letter-link" type="button" data-id="${Number(id)}" aria-describedby="${previewId}">${name}</button>`;
+      return `<article class="lrow${cls}">${av}
+        <div class="lrow-main"><div class="lrow-head">${title}
+        ${time ? `<span class="when">${time}</span>` : ""}</div>
+        <p class="lrow-prev"${previewId ? ` id="${previewId}"` : ""}>${prev}</p></div>
+        ${dot ? '<i class="dot" role="img" aria-label="읽지 않음"></i>' : ""}</article>`;
     };
     box.innerHTML = lettersCache.map((l) => {
       if (l.pending) {
-        return row(" pending", `<span class="ring"><span class="av">${AV}</span></span>`, hisName(),
+        return row(" pending", `<span class="ring" aria-hidden="true"><span class="av">${AV}</span></span>`, name,
           "편지가 오고 있어요", `${fmtShort.format(new Date(l.at))} 도착`, false);
       }
       const first = esc(String(l.body || "").split("\n").filter((x) => x.trim()).slice(0, 2).join(" "));
       if (l.s === "him") {
-        return row(l.read ? "" : " unread", `<span class="av">${AV}</span>`, hisName(), first, when(l.at), !l.read, l.id);
+        return row(l.read ? "" : " unread", `<span class="av" aria-hidden="true">${AV}</span>`, name, first, when(l.at), !l.read, l.id);
       }
       const arrived = new Date(l.arrives) <= new Date();
-      return row("", `<span class="av me">${me}</span>`, "내가 쓴 편지", first,
+      return row("", `<span class="av me" aria-hidden="true">${me}</span>`, "내가 쓴 편지", first,
         arrived ? "도착함" : `${fmtShort.format(new Date(l.arrives))} 도착 예정`, false, l.id);
     }).join("");
-    for (const el of box.querySelectorAll("button.lrow")) el.addEventListener("click", () => openLetter(Number(el.dataset.id)));
   }
 
-  function openLetter(id) {
-    const l = lettersCache.find((x) => x.id === id);
-    if (!l) return;
-    $("paperTitle").textContent = l.s === "him" ? `${S?.him || "태엽"}의 편지` : "내가 쓴 편지";
-    $("paperRead").textContent = l.body;
-    $("paperRead").hidden = false;
-    $("paperWriteWrap").hidden = true;
-    $("paperSend").hidden = true;
-    openLayer("paper", () => ($("paper").hidden = false));
+  function showPaper(mode, push = false) {
+    const writing = mode === "write";
+    const letter = writing ? null : lettersCache.find((item) => item.id === mode);
+    if (writing ? $("writeBtn").disabled : !letter) return;
+    if (push) history.pushState({ view: "letters", paper: mode }, "");
+    $("paperRead").hidden = writing;
+    $("paperWriteWrap").hidden = !writing;
+    $("paperSend").hidden = !writing;
+    $("paper").hidden = false;
+    updateInert();
+    if (writing) {
+      $("paperTitle").textContent = "편지 쓰기";
+      $("paperWrite").value = store.get("mm_draft") || "";
+      countLetter();
+      paperTrigger = $("writeBtn");
+      $("paperWrite").focus();
+      return;
+    }
+    $("paperTitle").textContent = letter.s === "him" ? `${hisName()}의 편지` : "내가 쓴 편지";
+    $("paperRead").textContent = letter.body;
     $("paperRead").scrollTop = 0;
-    if (l.s === "him" && !l.read) {
-      l.read = true;
-      api("letter_read", { id }).then(() => sync()).catch(() => {});
+    if (letter.s === "him" && !letter.read) {
+      letter.read = true;
+      api("letter_read", { id: letter.id }).then(() => sync()).catch(() => {});
       renderLetters();
     }
+    paperTrigger = $("letterList").querySelector(`button[data-id="${mode}"]`);
+    $("paperClose").focus();
   }
-
-  $("writeBtn").addEventListener("click", () => {
-    $("paperTitle").textContent = "편지 쓰기";
-    $("paperRead").hidden = true;
-    $("paperWriteWrap").hidden = false;
-    $("paperSend").hidden = false;
-    $("paperWrite").value = store.get("mm_draft") || "";
-    countLetter();
-    openLayer("paper", () => ($("paper").hidden = false));
-    setTimeout(() => $("paperWrite").focus(), 80);
+  $("letterList").addEventListener("click", (e) => {
+    const button = e.target.closest("button[data-id]");
+    if (button) showPaper(Number(button.dataset.id), true);
   });
+  $("writeBtn").addEventListener("click", () => showPaper("write", true));
   function countLetter() { $("paperCount").textContent = `${$("paperWrite").value.length}자`; store.set("mm_draft", $("paperWrite").value); }
   $("paperWrite").addEventListener("input", countLetter);
-  $("paperClose").addEventListener("click", () => goBack("paper"));
+  $("paperClose").addEventListener("click", closePaper);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("modal").hidden) $("modalBtns").lastElementChild?.click();
+    else if (!$("paper").hidden) closePaper();
+  });
   $("paperSend").addEventListener("click", async () => {
+    const submit = $("paperSend");
+    if (submit.disabled) return;
     const body = $("paperWrite").value.trim();
-    if (body.length < 10) { toast("조금만 더 써 주세요"); return; }
-    const ok = await modal("이대로 보낼까요?\n내일 정오에 도착하고, 보낸 뒤엔 고칠 수 없어요.", [{ label: "보내기", value: true, primary: true }, { label: "더 쓸게요", value: false }]);
+    if (body.length < 10) { toast("편지는 10자 이상 써 주세요."); return; }
+    const ok = await modal("이대로 보낼까요?\n내일 정오에 도착하고, 보낸 뒤엔 고칠 수 없어요.", [{ label: "보내기", value: true, primary: true }, { label: "취소", value: false }]);
     if (!ok) return;
+    submit.disabled = true;
     try {
       await api("letter_send", { body });
-      store.del("mm_draft");
-      goBack("paper");
+      if ($("paperWrite").value.trim() === body) {
+        store.del("mm_draft");
+        if (history.state?.paper === "write") closePaper();
+      }
       toast("보냈어요. 내일 정오에 도착해요.", 3000);
       await sync(); loadLetters();
     } catch (e) { toast(e.message, 3200); }
+    finally { submit.disabled = false; }
   });
 
   // ───────── 일기
   async function loadDiary() {
+    const list = $("diaryList");
+    if (!list.firstElementChild) list.innerHTML = `<div class="empty" role="status">일기를 불러오는 중…</div>`;
     try {
       const r = await api("diary");
-      $("diaryList").innerHTML = r.diary.length
-        ? r.diary.map((d) => `<div class="diary-entry">${esc(d.text)}</div>`).join("")
+      list.innerHTML = r.diary.length
+        ? r.diary.map((d) => `<article class="diary-entry">${esc(d.text)}</article>`).join("")
         : `<div class="empty">아직 일기가 없어요.</div>`;
-    } catch (e) { $("diaryList").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+    } catch (e) {
+      if (list.querySelector(".diary-entry")) toast(e.message);
+      else list.innerHTML = `<div class="empty" role="status">${esc(e.message)}</div>`;
+    }
   }
 
   // ───────── 30일째 밤
   async function askChoice() {
     const v = await modal("30일째 밤입니다.\n이름을 교환할까요?\n\n두 사람 모두 원할 때만 이름이 건너갑니다.", [
-      { label: "이름을 알려줄게요", value: "continue", primary: true },
-      { label: "여기서 끝낼게요", value: "end" },
-      { label: "조금 이따 고를게요", value: null },
+      { label: "이름 교환", value: "continue", primary: true },
+      { label: "종료", value: "end" },
+      { label: "나중에", value: null },
     ]);
     if (!v) { applyState._snooze = Date.now() + 10 * 60000; applyState._asked = false; return; }
-    const sure = await modal(v === "continue" ? "이름을 알려주기로 할까요?" : "여기서 끝내기로 할까요?\n그는 끝까지 당신의 이름을 모릅니다.", [{ label: "네", value: true, primary: true }, { label: "다시 생각할게요", value: false }]);
+    const sure = await modal(v === "continue" ? "이름을 알려주기로 할까요?" : "여기서 끝내기로 할까요?\n그는 끝까지 당신의 이름을 몰라요.", [{ label: "확인", value: true, primary: true }, { label: "취소", value: false }]);
     if (!sure) { applyState._asked = false; return; }
     try {
       await api("choose", { choice: v });
       toast("그의 편지가 곧 도착해요.", 4000);
-      setTab("letters");
+      navigate("letters");
     } catch (e) { toast(e.message); applyState._asked = false; }
   }
 
@@ -536,7 +665,9 @@
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
-    navigator.serviceWorker.addEventListener("message", (e) => { if (e.data?.type === "open") setTab(e.data.tab || "chat"); });
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      if (e.data?.type === "open" && !$("app").hidden) navigate(e.data.tab || "chat");
+    });
   }
   if (navigator.clearAppBadge) document.addEventListener("visibilitychange", () => { if (!document.hidden) navigator.clearAppBadge().catch(() => {}); });
 

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>무명</title>
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#eeeeee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -14,178 +14,185 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- 잠금 -->
   <section id="lock" class="screen auth" hidden>
     <div class="auth-box">
-      <div class="logo serif">무명</div>
-      <p class="auth-sub">이름 모르는 채로, 서른 날.</p>
+      <header class="auth-header">
+        <span class="emblem" data-av aria-hidden="true"></span>
+        <h1 class="logo">무명</h1>
+      </header>
       <form id="lockForm" autocomplete="off">
-        <input id="pass" type="password" inputmode="numeric" maxlength="32" placeholder="암호" autocomplete="current-password">
+        <label for="pass">암호</label>
+        <input id="pass" type="password" inputmode="numeric" maxlength="32" autocomplete="current-password" required>
         <button class="btn primary wide" type="submit">열기</button>
       </form>
-      <p id="lockErr" class="err small"></p>
+      <p id="lockErr" class="err small" role="alert"></p>
     </div>
-    <p class="auth-foot">이 기기에서만 열려요</p>
   </section>
 
-  <!-- 처음 -->
   <section id="onboard" class="screen auth" hidden>
-    <div class="auth-box onb">
-      <div class="logo serif">무명</div>
-      <p class="auth-sub">이름 모르는 채로, 서른 날.</p>
-      <ol class="rules">
-        <li><i>1</i><p>실명·얼굴·연락처·직장 이름은 묻지도 말하지도 않아요. 그 밖의 삶은 얼마든지.</p></li>
-        <li><i>2</i><p>톡은 자유롭게. 편지는 하루 한 통, 쓴 다음 날 정오에 도착해요.</p></li>
-        <li><i>3</i><p>30일째 밤, 두 사람 모두 원하면 이름을 교환해요. 한 사람이라도 원하지 않으면 그대로 모르는 사이로 끝나요.</p></li>
-      </ol>
-      <input id="codename" maxlength="12" placeholder="무명에서 쓸 닉네임">
-      <button id="startBtn" class="btn primary wide">매칭 시작</button>
-      <p id="onbErr" class="err small"></p>
+    <div class="auth-box">
+      <header class="auth-header">
+        <span class="emblem" data-av aria-hidden="true"></span>
+        <h1 class="logo">무명</h1>
+      </header>
+      <form id="startForm" class="auth-form">
+        <label for="codename">이름</label>
+        <input id="codename" maxlength="12" value="한윤서" autocomplete="off" required>
+        <button id="startBtn" class="btn primary wide" type="submit">시작</button>
+      </form>
+      <p id="onbErr" class="err small" role="alert"></p>
+      <details class="rules">
+        <summary>이용 규칙</summary>
+        <ul>
+          <li>실명·얼굴·연락처·직장 이름은 묻지도 말하지도 않아요.</li>
+          <li>편지는 하루에 한 통 보낼 수 있어요. 다음 날 정오에 도착해요.</li>
+          <li>30일째 밤, 두 사람 모두 원하면 이름을 교환해요.</li>
+        </ul>
+      </details>
     </div>
   </section>
 
-  <!-- 본 화면: 대화방 -->
   <section id="app" class="screen" hidden>
-    <header class="top">
-      <button class="who" data-open="settings" aria-label="상대 정보">
-        <span class="ring"><span class="av" data-av></span></span>
-        <span class="who-text">
-          <span class="name"><span id="hisName">태엽</span><span id="dday" class="dday"></span></span>
-          <span class="sub"><span id="presence"></span><span id="status"></span></span>
-        </span>
-      </button>
-      <div class="actions">
-        <button class="icon" data-open="letters" aria-label="편지함">
-          <svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.8 7l8.2 6 8.2-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-          <i id="letterBadge" class="badge" hidden></i>
-        </button>
-        <button id="diaryTab" class="icon" data-open="diary" aria-label="그의 일기" hidden>
-          <svg viewBox="0 0 24 24"><path d="M5 4.5h10.5A3.5 3.5 0 0 1 19 8v11.5H8.5A3.5 3.5 0 0 1 5 16z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 16a3.5 3.5 0 0 1 3.5-3.5H19M9 8.5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </button>
-        <button id="gear" class="icon" data-open="settings" aria-label="정보">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.2" fill="currentColor"/></svg>
-        </button>
-      </div>
-    </header>
-    <div id="aiBanner" class="banner" hidden>AI 키가 아직 연결되지 않았어요. 연결되면 그가 답하기 시작해요.</div>
+    <div class="journal">
+      <aside class="journal-sidebar">
+        <div class="journal-brand">
+          <span class="emblem" data-av aria-hidden="true"></span>
+          <span>무명</span>
+        </div>
+        <nav class="journal-nav" aria-label="무명 메뉴">
+          <button class="nav-item" type="button" data-view="chat" aria-current="page">대화</button>
+          <button class="nav-item" type="button" data-view="letters">
+            편지함<span id="letterBadge" class="nav-unread" aria-hidden="true" hidden></span>
+          </button>
+          <button id="diaryTab" class="nav-item" type="button" data-view="diary" hidden>일기</button>
+          <button class="nav-item" type="button" data-view="settings">정보</button>
+        </nav>
+        <div id="sidebarProgress" class="sidebar-progress" hidden>
+          <div class="days-text"><span id="sidebarDay"></span><span>30일</span></div>
+          <div class="days-bar" aria-hidden="true"><i id="sidebarBar"></i></div>
+        </div>
+      </aside>
 
-    <main id="chat" class="pane">
-      <div id="msgs" class="msgs"></div>
-      <div id="typing" class="row-msg him last typing-row" hidden>
-        <span class="mini av" data-av></span>
-        <div class="typing"><span></span><span></span><span></span></div>
-      </div>
-    </main>
-
-    <footer id="composer" class="composer">
-      <div class="field">
-        <button id="photoBtn" class="cam" aria-label="사진 보내기"><svg viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z" fill="currentColor"/><circle cx="12" cy="12.4" r="3.3" fill="none" stroke="var(--cam-ink)" stroke-width="1.8"/></svg></button>
-        <input id="photoInput" type="file" accept="image/*" hidden>
-        <textarea id="input" rows="1" placeholder="메시지 보내기…"></textarea>
-        <button id="galleryBtn" class="icon tool" aria-label="앨범에서 사진"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4 17l4.5-4.5 3.5 3.5 2.5-2.5 5.5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
-        <button id="sendBtn" class="send" aria-label="보내기">보내기</button>
-      </div>
-    </footer>
-
-    <!-- 편지함 -->
-    <section id="letters" class="page" hidden>
-      <header class="page-top">
-        <button class="back" data-back="letters" aria-label="뒤로"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <h2>편지함</h2>
-        <span class="spacer"></span>
-      </header>
-      <div class="page-body">
-        <button id="writeBtn" class="write-row">
-          <span class="write-ic"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="1.9"/></svg></span>
-          <span class="write-text"><b id="writeLabel">편지 쓰기</b><small id="writeSub">하루 한 통 · 내일 정오에 도착해요</small></span>
-        </button>
-        <div class="list-label">편지</div>
-        <div id="letterList" class="letter-list"></div>
-      </div>
-    </section>
-
-    <!-- 일기 -->
-    <section id="diary" class="page" hidden>
-      <header class="page-top">
-        <button class="back" data-back="diary" aria-label="뒤로"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <h2>그의 일기</h2>
-        <span class="spacer"></span>
-      </header>
-      <div class="page-body">
-        <div id="diaryList" class="diary-list"></div>
-      </div>
-    </section>
-
-    <!-- 정보·설정 -->
-    <section id="settings" class="page" hidden>
-      <header class="page-top">
-        <button class="back" data-back="settings" aria-label="뒤로"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <h2>정보</h2>
-        <span class="spacer"></span>
-      </header>
-      <div class="page-body">
-        <div class="profile">
-          <span class="ring xl"><span class="av" data-av></span></span>
-          <div id="infoName" class="p-name">태엽</div>
-          <div id="infoStatus" class="p-sub"></div>
-          <div class="days">
-            <div class="days-bar"><i id="dayBar"></i></div>
-            <div class="days-text"><span id="dayText"></span><span>30일</span></div>
+      <main class="journal-content">
+        <section id="chatView" class="view chat-view" aria-label="대화">
+          <header class="top">
+            <div class="who">
+              <span class="ring" aria-hidden="true"><span class="av" data-av></span></span>
+              <span class="who-text">
+                <span id="hisName" class="name">이도현</span>
+                <span class="sub"><span id="presence"></span><span id="status"></span></span>
+              </span>
+            </div>
+            <span id="dday" class="dday"></span>
+          </header>
+          <div id="aiBanner" class="banner" role="status" hidden>AI 키를 연결하면 답장이 와요.</div>
+          <div class="chat-stream">
+            <div id="chat" class="pane" tabindex="0" aria-label="메시지 기록">
+              <div id="msgs" class="msgs"></div>
+              <div id="typing" class="row-msg him last typing-row" hidden>
+                <span class="mini av" data-av aria-hidden="true"></span>
+                <div class="typing" role="status" aria-label="답장을 쓰고 있어요"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+            <button id="jumpLatest" class="icon jump-latest" type="button" aria-label="최근 메시지" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-6-6 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
-        </div>
+          <footer id="composer" class="composer">
+            <div class="field">
+              <button id="photoBtn" class="icon tool" type="button" aria-label="사진 보내기" data-live>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9.5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 17l4.5-4.5 3.5 3.5 2.5-2.5 5.5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+              </button>
+              <input id="photoInput" type="file" accept="image/*" hidden>
+              <textarea id="input" rows="1" aria-label="메시지" placeholder="메시지"></textarea>
+              <button id="sendBtn" class="send" type="button" aria-label="보내기" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </footer>
+        </section>
 
-        <div class="group-label">나</div>
-        <div class="group">
-          <div class="cell"><span>내 닉네임</span><span id="myName" class="muted"></span></div>
-        </div>
-
-        <div class="group-label">알림</div>
-        <div class="group">
-          <div class="cell col">
-            <div class="between"><span>푸시 알림</span><button id="pushBtn" class="btn small primary">알림 켜기</button></div>
-            <p id="pushHelp" class="small muted"></p>
+        <section id="letters" class="view page" aria-labelledby="lettersTitle" hidden>
+          <header class="page-top">
+            <h2 id="lettersTitle">편지함</h2>
+            <button id="writeBtn" class="btn small primary" type="button">편지 쓰기</button>
+          </header>
+          <div class="page-body" tabindex="0" aria-label="편지 목록">
+            <p id="writeStatus" class="write-status" role="status" hidden></p>
+            <div id="letterList" class="letter-list"></div>
           </div>
-          <div class="cell"><span>알림 테스트</span><button id="pushTest" class="btn small">보내보기</button></div>
-        </div>
+        </section>
 
-        <div class="group">
-          <button id="logout" class="cell danger">이 기기에서 잠그기</button>
-        </div>
-        <p class="foot">무명 · 이름 모르는 채로, 서른 날.</p>
-      </div>
-    </section>
-  </section>
+        <section id="diary" class="view page" aria-labelledby="diaryTitle" hidden>
+          <header class="page-top"><h2 id="diaryTitle">이도현의 일기</h2></header>
+          <div class="page-body" tabindex="0" aria-label="일기 목록"><div id="diaryList" class="diary-list"></div></div>
+        </section>
 
-  <!-- 편지 읽기 / 쓰기 -->
-  <section id="paper" class="sheet paper-sheet" hidden>
-    <div class="sheet-top">
-      <button id="paperClose" class="back" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-      <span id="paperTitle" class="sheet-title"></span>
-      <button id="paperSend" class="link strong" hidden>보내기</button>
-    </div>
-    <article id="paperRead" class="paper serif"></article>
-    <div id="paperWriteWrap" class="paper-write" hidden>
-      <textarea id="paperWrite" class="paper serif" placeholder="천천히 쓰세요. 내일 정오에 도착합니다."></textarea>
-      <div id="paperCount" class="small muted count"></div>
+        <section id="settings" class="view page" aria-labelledby="settingsTitle" hidden>
+          <header class="page-top"><h2 id="settingsTitle">정보</h2></header>
+          <div class="page-body settings-body">
+            <div class="profile">
+              <span class="ring" aria-hidden="true"><span class="av" data-av></span></span>
+              <div class="profile-text">
+                <div id="infoName" class="p-name">이도현</div>
+                <div id="infoStatus" class="p-sub"></div>
+              </div>
+              <div id="profileProgress" class="days">
+                <div class="days-text"><span id="dayText"></span><span>30일</span></div>
+                <div class="days-bar" aria-hidden="true"><i id="dayBar"></i></div>
+              </div>
+            </div>
+
+            <h3 class="group-label">나</h3>
+            <div class="group">
+              <div class="cell"><span>내 이름</span><span id="myName" class="muted"></span></div>
+            </div>
+
+            <h3 class="group-label" data-live>알림</h3>
+            <div class="group" data-live>
+              <div class="cell col">
+                <div class="between"><span>푸시 알림</span><button id="pushBtn" class="btn small primary" type="button">알림 켜기</button></div>
+                <p id="pushHelp" class="small muted"></p>
+              </div>
+              <div class="cell"><span>알림 테스트</span><button id="pushTest" class="btn small" type="button">보내보기</button></div>
+            </div>
+
+            <div class="group" data-live>
+              <button id="logout" class="cell lock-button" type="button">잠그기</button>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   </section>
 
-  <!-- 모달 -->
+  <div id="paper" class="sheet" hidden>
+    <section class="paper-sheet" role="dialog" aria-modal="true" aria-labelledby="paperTitle">
+      <div class="sheet-top">
+        <button id="paperClose" class="icon back" type="button" aria-label="편지 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <h2 id="paperTitle" class="sheet-title"></h2>
+        <button id="paperSend" class="btn small primary" type="button" hidden>보내기</button>
+      </div>
+      <article id="paperRead" class="paper" tabindex="0"></article>
+      <div id="paperWriteWrap" class="paper-write" hidden>
+        <textarea id="paperWrite" class="paper" aria-label="편지 본문" placeholder="편지 본문"></textarea>
+        <div class="paper-footer"><span>내일 정오에 도착해요</span><span id="paperCount"></span></div>
+      </div>
+    </section>
+  </div>
+
   <div id="modal" class="modal" hidden>
-    <div class="modal-card">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalText">
       <p id="modalText"></p>
       <div id="modalBtns" class="modal-btns"></div>
     </div>
   </div>
 
-  <div id="toast" class="toast" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
