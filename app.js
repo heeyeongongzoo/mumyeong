@@ -46,9 +46,8 @@
   }
 
   // ───────── 아바타
-  const AV = '<svg viewBox="0 0 24 24"><path d="M12.00 11.40 L12.15 11.34 L12.32 11.32 L12.51 11.35 L12.70 11.43 L12.88 11.57 L13.03 11.76 L13.13 11.99 L13.18 12.26 L13.16 12.54 L13.07 12.83 L12.90 13.11 L12.67 13.35 L12.37 13.54 L12.02 13.66 L11.64 13.70 L11.24 13.64 L10.85 13.49 L10.49 13.25 L10.18 12.92 L9.95 12.51 L9.81 12.05 L9.78 11.55 L9.87 11.03 L10.08 10.54 L10.40 10.09 L10.83 9.72 L11.34 9.44 L11.92 9.29 L12.54 9.26 L13.17 9.38 L13.76 9.64 L14.30 10.04 L14.74 10.57 L15.06 11.19 L15.24 11.89 L15.26 12.62 L15.11 13.36 L14.79 14.06 L14.32 14.68 L13.70 15.20 L12.97 15.57 L12.16 15.77 L11.31 15.79 L10.45 15.61 L9.65 15.24 L8.93 14.68 L8.35 13.97 L7.93 13.14 L7.70 12.21 L7.69 11.24 L7.89 10.27 L8.32 9.36 L8.94 8.56 L9.75 7.90 L10.69 7.43 L11.73 7.18 L12.82 7.16 L13.90 7.39 L14.92 7.87 L15.81 8.57 L16.55 9.46 L17.07 10.51 L17.35 11.66 L17.37 12.87 L17.11 14.06 L16.59 15.19 L15.82 16.18 L14.83 16.99 L13.68 17.57 L12.41 17.87 L11.09 17.89 L9.78 17.62 L8.54 17.05 L7.46 16.21 L6.57 15.13 L5.94 13.88 L5.60 12.49 L5.58 11.05 L5.88 9.62 L6.49 8.28 L7.40 7.10 L8.56 6.14 L9.92 5.45 L11.42 5.08 L12.98 5.05 L14.52 5.36 L15.97 6.03 L17.25 7.00 L18.29 8.25 L19.04 9.71" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  document.querySelectorAll("[data-av]").forEach((el) => (el.innerHTML = AV));
   const hisName = () => !S?.him || S.him === "태엽" ? "이도현" : S.him;
+  const partnerInitial = (name = hisName()) => name === "이도현" ? "도" : Array.from(name)[0] || "도";
 
   // ───────── 화면 탐색
   const views = new Map([["chat", "chatView"], ["letters", "letters"], ["diary", "diary"], ["settings", "settings"]]);
@@ -167,8 +166,8 @@
     submit.disabled = true;
     try {
       await api("start", { codename: name });
-      await boot("letters");
-      toast(S.unread_letters ? "첫 편지가 도착했어요." : "첫 편지가 곧 도착해요.");
+      await boot(CFG.preview ? "chat" : "letters");
+      if (!CFG.preview) toast(S.unread_letters ? "첫 편지가 도착했어요." : "첫 편지가 곧 도착해요.");
     } catch (err) { $("onbErr").textContent = err.message; }
     finally { submit.disabled = false; }
   });
@@ -195,6 +194,7 @@
   function applyState(st) {
     S = st;
     const name = hisName();
+    for (const avatar of document.querySelectorAll("[data-av]")) avatar.textContent = partnerInitial(name);
     $("hisName").textContent = name;
     $("infoName").textContent = name;
     $("diaryTitle").textContent = `${name}의 일기`;
@@ -280,7 +280,7 @@
   function rowHTML(side, pos, content, meta, extra = "") {
     return side === "her"
       ? `<div class="row-msg her ${pos}${extra}">${meta}${content}</div>`
-      : `<div class="row-msg him ${pos}${extra}"><span class="mini av" aria-hidden="true">${AV}</span>${content}${meta}</div>`;
+      : `<div class="row-msg him ${pos}${extra}"><span class="mini av" aria-hidden="true">${esc(partnerInitial())}</span>${content}${meta}</div>`;
   }
 
   function renderMsgs(scroll) {
@@ -329,7 +329,7 @@
       const r = last.delivery === "sending" ? "보내는 중…" : last.id <= readUpto ? "읽음" : "전송됨";
       parts.push(`<div class="receipt">${r}</div>`);
     }
-    if (!msgs.length) parts.push(`<div class="empty">아직 오간 대화가 없어요.</div>`);
+    if (!msgs.length) parts.push(`<div class="empty">아직 대화가 없어요.</div>`);
     box.innerHTML = parts.join("");
     if (focusedRetry) box.querySelector(`[data-retry-message="${focusedRetry}"]`)?.focus({ preventScroll: true });
     $("typing").hidden = !typing;
@@ -496,30 +496,28 @@
   function renderLetters() {
     const box = $("letterList");
     if (!lettersCache.length) { box.innerHTML = `<div class="empty">아직 편지가 없어요.</div>`; return; }
-    const me = esc(Array.from(S?.her || "나")[0] || "나");
     const name = esc(hisName());
-    const row = (cls, av, name, prev, time, dot, id) => {
+    const row = (cls, name, prev, time, dot, id) => {
       const previewId = id == null ? "" : `letter-preview-${Number(id)}`;
       const title = id == null
         ? `<span class="lrow-name">${name}</span>`
         : `<button class="lrow-name letter-link" type="button" data-id="${Number(id)}" aria-describedby="${previewId}">${name}</button>`;
-      return `<article class="lrow${cls}">${av}
-        <div class="lrow-main"><div class="lrow-head">${title}
+      return `<article class="lrow${cls}">
+        <div class="lrow-head"><span class="lrow-sender">${title}${dot ? '<i class="dot" role="img" aria-label="읽지 않음"></i>' : ""}</span>
         ${time ? `<span class="when">${time}</span>` : ""}</div>
-        <p class="lrow-prev"${previewId ? ` id="${previewId}"` : ""}>${prev}</p></div>
-        ${dot ? '<i class="dot" role="img" aria-label="읽지 않음"></i>' : ""}</article>`;
+        <p class="lrow-prev"${previewId ? ` id="${previewId}"` : ""}>${prev}</p></article>`;
     };
     box.innerHTML = lettersCache.map((l) => {
       if (l.pending) {
-        return row(" pending", `<span class="ring" aria-hidden="true"><span class="av">${AV}</span></span>`, name,
+        return row(" pending", name,
           "편지가 오고 있어요", `${fmtShort.format(new Date(l.at))} 도착`, false);
       }
       const first = esc(String(l.body || "").split("\n").filter((x) => x.trim()).slice(0, 2).join(" "));
       if (l.s === "him") {
-        return row(l.read ? "" : " unread", `<span class="av" aria-hidden="true">${AV}</span>`, name, first, when(l.at), !l.read, l.id);
+        return row(l.read ? "" : " unread", name, first, when(l.at), !l.read, l.id);
       }
       const arrived = new Date(l.arrives) <= new Date();
-      return row("", `<span class="av me" aria-hidden="true">${me}</span>`, "내가 쓴 편지", first,
+      return row("", "내가 쓴 편지", first,
         arrived ? "도착함" : `${fmtShort.format(new Date(l.arrives))} 도착 예정`, false, l.id);
     }).join("");
   }

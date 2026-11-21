@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>무명</title>
-  <meta name="theme-color" content="#eeeeee" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1c1c" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -21,7 +21,6 @@
   <section id="lock" class="screen auth" hidden>
     <div class="auth-box">
       <header class="auth-header">
-        <span class="emblem" data-av aria-hidden="true"></span>
         <h1 class="logo">무명</h1>
       </header>
       <form id="lockForm" autocomplete="off">
@@ -36,7 +35,6 @@
   <section id="onboard" class="screen auth" hidden>
     <div class="auth-box">
       <header class="auth-header">
-        <span class="emblem" data-av aria-hidden="true"></span>
         <h1 class="logo">무명</h1>
       </header>
       <form id="startForm" class="auth-form">
@@ -59,10 +57,7 @@
   <section id="app" class="screen" hidden>
     <div class="journal">
       <aside class="journal-sidebar">
-        <div class="journal-brand">
-          <span class="emblem" data-av aria-hidden="true"></span>
-          <span>무명</span>
-        </div>
+        <div class="journal-brand">무명</div>
         <nav class="journal-nav" aria-label="무명 메뉴">
           <button class="nav-item" type="button" data-view="chat" aria-current="page">대화</button>
           <button class="nav-item" type="button" data-view="letters">
@@ -81,7 +76,7 @@
         <section id="chatView" class="view chat-view" aria-label="대화">
           <header class="top">
             <div class="who">
-              <span class="ring" aria-hidden="true"><span class="av" data-av></span></span>
+              <span class="av" data-av aria-hidden="true"></span>
               <span class="who-text">
                 <span id="hisName" class="name">이도현</span>
                 <span class="sub"><span id="presence"></span><span id="status"></span></span>
@@ -136,7 +131,7 @@
           <header class="page-top"><h2 id="settingsTitle">정보</h2></header>
           <div class="page-body settings-body">
             <div class="profile">
-              <span class="ring" aria-hidden="true"><span class="av" data-av></span></span>
+              <span class="av" data-av aria-hidden="true"></span>
               <div class="profile-text">
                 <div id="infoName" class="p-name">이도현</div>
                 <div id="infoStatus" class="p-sub"></div>
